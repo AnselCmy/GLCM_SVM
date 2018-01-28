@@ -8,7 +8,7 @@ using namespace cv;
 int main()
 {
     GLCM glcm("../img/5.bmp", 16);
-    glcm.CalGLCM(90);
+    glcm.CalGLCM(135);
     glcm.CalFeature();
     cout << glcm.GLCMFeature.entropy << endl;
     cout << glcm.GLCMFeature.homogeneity << endl;

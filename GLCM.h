@@ -21,8 +21,8 @@ struct GLCMFeature_t
 class GLCM
 {
 public:
-    GLCM(InputArray _src, int GLCM_class = 256);
-    GLCM(String path, int GLCM_class = 256);
+    GLCM(InputArray _srcImg, int _GLCMClass = -1);
+    GLCM(String path, int _GLCMClass = -1);
     ~GLCM();
 
 
@@ -30,6 +30,7 @@ public:
     Mat GLCMMat;
     Mat srcImg;
     int GLCMClass;
+    double maxPixVal;
     GLCMFeature_t GLCMFeature;
     void CalGLCM(int angle = 0, int offset = 1, bool norm = true);
     void CalFeature();

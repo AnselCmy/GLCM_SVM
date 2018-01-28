@@ -4,23 +4,31 @@
 
 #include "GLCM.h"
 
-GLCM::GLCM(InputArray _src, int _GLCMClass)
+GLCM::GLCM(InputArray _srcImg, int _GLCMClass)
 {
-    GLCMClass = _GLCMClass;
+    srcImg = _srcImg.getMat();
+    minMaxIdx(srcImg, NULL, &maxPixVal);
+    if(_GLCMClass == -1)
+        GLCMClass = (int)maxPixVal + 1;
+    else
+        GLCMClass = _GLCMClass;
     GLCMMat = *(new Mat(Size(GLCMClass, GLCMClass), CV_32FC1));
-    srcImg = _src.getMat();
 }
 
 GLCM::GLCM(String path, int _GLCMClass)
 {
-    GLCMClass = _GLCMClass;
-    GLCMMat = *(new Mat(Size(GLCMClass, GLCMClass), CV_32FC1));
     srcImg = imread(path, CV_8UC1);
+    minMaxIdx(srcImg, NULL, &maxPixVal);
+    if(_GLCMClass == -1)
+        GLCMClass = (int)maxPixVal + 1;
+    else
+        GLCMClass = _GLCMClass;
+    GLCMMat = *(new Mat(Size(GLCMClass, GLCMClass), CV_32FC1));
 }
 
 GLCM::~GLCM()
 {
-//    delete &GLCMMat;
+
 }
 
 /*
@@ -38,22 +46,12 @@ void GLCM::CalGLCM(int angle, int offset, bool norm)
     // using matrix temp to store the pixel in GLCM_class-gray
     Mat temp(srcSize, CV_8UC1);
     GLCMMat = Scalar_<float>(0);
-    // find max pixel in src
-    uchar max = 0;
-    for(int h = 0; h < srcSize.height; ++h)
-    {
-        for(int w = 0; w < srcSize.width; ++w)
-        {
-            if(srcImg.at<uchar>(h, w) > max)
-                max = srcImg.at<uchar>(h, w);
-        }
-    }
     // zip srcImg into temp
     for(int h = 0; h < srcSize.height; ++h)
     {
         for(int w = 0; w < srcSize.width; ++w)
         {
-            temp.at<uchar>(h, w) = (uchar)(srcImg.at<uchar>(h, w) * GLCMClass / (max+1));
+            temp.at<uchar>(h, w) = (uchar)(srcImg.at<uchar>(h, w) * GLCMClass / (maxPixVal+1));
         }
     }
     // calculate the matrix
@@ -62,10 +60,11 @@ void GLCM::CalGLCM(int angle, int offset, bool norm)
     {
         for(int h = 0; h < srcSize.height; ++h)
         {
+            uchar* tempLine = temp.ptr(h);
             for(int w = 0; w < srcSize.width - offset; ++w)
             {
-                row = temp.at<uchar>(h, w);
-                col = temp.at<uchar>(h, w + offset);
+                row = tempLine[w];
+                col = tempLine[w + offset];
                 GLCMMat.at<float>(row, col)++;
                 GLCMMat.at<float>(col, row)++;
             }
@@ -75,10 +74,12 @@ void GLCM::CalGLCM(int angle, int offset, bool norm)
     {
         for(int h = 0; h < srcSize.height - offset; ++h)
         {
+            uchar* tempLine = temp.ptr(h);
+            uchar* tempLineOffset = temp.ptr(h + offset);
             for(int w = 0; w < srcSize.width; ++w)
             {
-                row = temp.at<uchar>(h, w);
-                col = temp.at<uchar>(h + offset, w);
+                row = tempLine[w];
+                col = tempLineOffset[w];
                 GLCMMat.at<float>(row, col)++;
                 GLCMMat.at<float>(col, row)++;
             }
@@ -88,10 +89,12 @@ void GLCM::CalGLCM(int angle, int offset, bool norm)
     {
         for(int h = 0; h < srcSize.height - offset; ++h)
         {
+            uchar* tempLine = temp.ptr(h);
+            uchar* tempLineOffset = temp.ptr(h + offset);
             for(int w = 0; w < srcSize.width - offset; ++w)
             {
-                row = temp.at<uchar>(h, w);
-                col = temp.at<uchar>(h + offset, w + offset);
+                row = tempLine[w];
+                col = tempLineOffset[w + offset];
                 GLCMMat.at<float>(row, col)++;
                 GLCMMat.at<float>(col, row)++;
             }
@@ -101,10 +104,12 @@ void GLCM::CalGLCM(int angle, int offset, bool norm)
     {
         for(int h = 0; h < srcSize.height-offset; ++h)
         {
+            uchar* tempLine = temp.ptr(h);
+            uchar* tempLineOffset = temp.ptr(h + offset);
             for(int w = 1; w < srcSize.width; ++w)
             {
-                row = temp.at<uchar>(h, w);
-                col = temp.at<uchar>(h + offset, w - offset);
+                row = tempLine[w];
+                col = tempLineOffset[w - offset];
                 GLCMMat.at<float>(row, col)++;
                 GLCMMat.at<float>(col, row)++;
             }
@@ -134,11 +139,7 @@ void GLCM::CalGLCM(int angle, int offset, bool norm)
 
 /*
  * Brief:
- *      Using computed GLCM for caulating features
- *
- * Params:
- *      _GLCM:      The input GLCM matric for calculating features
- *      feature:    A variable to store features
+ *      Using computed GLCMMat for caulating GLCMFeature
  */
 void GLCM::CalFeature()
 {
@@ -153,9 +154,10 @@ void GLCM::CalFeature()
     double mean_i = 0, mean_j = 0, var_i = 0, var_j = 0;
     for(int i = 0; i < size.height; ++i)
     {
+        float* GLCMLine = GLCMMat.ptr<float>(i);
         for(int j = 0; j < size.width; ++j)
         {
-            currVal = GLCMMat.at<float>(i, j);
+            currVal = GLCMLine[j];
             mean_i += currVal * i;
             mean_j += currVal * j;
             var_i += currVal * pow((i - mean_i), 2);
@@ -164,9 +166,10 @@ void GLCM::CalFeature()
     }
     for(int h = 0; h < size.height; ++h)
     {
+        float* GLCMLine = GLCMMat.ptr<float>(h);
         for(int w = 0; w < size.width; ++w)
         {
-            currVal = GLCMMat.at<float>(h, w);
+            currVal = GLCMLine[w];
             // Entropy
             if(currVal > 0)
                 GLCMFeature.entropy += (pow(h-w, 2) * currVal) / log(currVal);
