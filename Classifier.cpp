@@ -7,16 +7,26 @@
 using namespace std;
 using namespace cv;
 
+
 Classifier::Classifier(String _folderName)
 {
     folderName = _folderName;
 }
+
 
 Classifier::~Classifier()
 {
 
 }
 
+
+/*
+ * Brief:
+ *      Get the list of folders of the input folderName
+ *
+ * Params:
+ *      The name of the listed folder
+ */
 vector<String> Classifier::GetFolderList(String folderName)
 {
     DIR *dir = opendir(folderName.c_str());
@@ -33,17 +43,22 @@ vector<String> Classifier::GetFolderList(String folderName)
     return folderList;
 }
 
+
+/*
+ * Brief:
+ *      Transform the data from [folderName]/train to get trainX and trainY by GLCM
+ */
 void Classifier::GetTrainingData()
 {
     // class list for training data
-    vector<String> classList = GetFolderList(folderName);
+    vector<String> classList = GetFolderList(folderName + "/train");
     dirent *dirp;
     Mat img;
     GLCM glcm;
     svm_node* nodeList;
     for(String binClass : classList)
     {
-        DIR *dir = opendir((folderName + binClass).c_str());
+        DIR *dir = opendir((folderName + "/train/" + binClass).c_str());
         vector<String> fileList;
         int cnt = 1;
         while((dirp = readdir(dir)) != nullptr)
@@ -51,7 +66,7 @@ void Classifier::GetTrainingData()
             if(dirp->d_type == DT_REG && dirp->d_name[0] != '.')
             {
                 // calculate GLCM features
-                glcm.Init(folderName + binClass + "/" + dirp->d_name, 16);
+                glcm.Init(folderName + "/train/" + binClass + "/" + dirp->d_name, 16);
                 glcm.CalGLCM(90);
                 glcm.CalFeature();
                 // add svm_node into trainX
@@ -78,6 +93,11 @@ void Classifier::GetTrainingData()
     }
 }
 
+
+/*
+ * Brief:
+ *      Using the data from trainX and trainY to training the svm model
+ */
 void Classifier::Train()
 {
     svm_problem prob;
@@ -87,7 +107,6 @@ void Classifier::Train()
     prob.x = &trainX[0];
     // 给y分配空间
     prob.y = &trainY[0];
-
 
     svm_parameter param;
     param.svm_type = C_SVC;
@@ -108,7 +127,16 @@ void Classifier::Train()
 }
 
 
-
+/*
+ * Brief:
+ *      Using the path of the image to predict its class
+ *
+ * Params:
+ *      path: The path of image need to be predicted
+ *
+ * Return:
+ *      The class of the input image
+ */
 int Classifier::Predict(String path)
 {
     GLCM glcm;

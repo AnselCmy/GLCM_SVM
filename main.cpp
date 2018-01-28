@@ -8,10 +8,10 @@ using namespace cv;
 
 int main()
 {
-    Classifier classifier("../img/binary_classification/");
+    Classifier classifier("../binary_classification");
     classifier.GetTrainingData();
     classifier.Train();
-    cout << classifier.Predict("../img/binary_classification/-1/E550.jpg") << endl;
+    cout << classifier.Predict("../binary_classification/train/-1/E120.jpg") << endl;
 
     return 0;
 }

@@ -27,8 +27,6 @@ public:
     GLCM();
     ~GLCM();
 
-
-//private:
     Mat GLCMMat;
     Mat srcImg;
     int GLCMClass;
