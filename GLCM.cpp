@@ -31,6 +31,17 @@ GLCM::GLCM(String path, int _GLCMClass)
     GLCMMat = *(new Mat(Size(GLCMClass, GLCMClass), CV_32FC1));
 }
 
+void GLCM::Init(InputArray _srcImg, int _GLCMClass)
+{
+    srcImg = _srcImg.getMat();
+    minMaxIdx(srcImg, NULL, &maxPixVal);
+    if(_GLCMClass == -1)
+        GLCMClass = (int)maxPixVal + 1;
+    else
+        GLCMClass = _GLCMClass;
+    GLCMMat = *(new Mat(Size(GLCMClass, GLCMClass), CV_32FC1));
+}
+
 void GLCM::Init(String path, int _GLCMClass)
 {
     srcImg = imread(path, CV_8UC1);

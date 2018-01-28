@@ -141,7 +141,7 @@ int Classifier::Predict(String path)
 {
     GLCM glcm;
     svm_node* x;
-    svm_model* model = svm_load_model((folderName + "svm_model").c_str());
+    svm_model* model = svm_load_model((folderName + "/svm_model").c_str());
     // calculate GLCM features
     glcm.Init(path, 16);
     glcm.CalGLCM(90);
@@ -155,4 +155,50 @@ int Classifier::Predict(String path)
     x[4].index = 5; x[4].value = glcm.GLCMFeature.correlation;
     x[5].index = -1; x[5].value = 0;
     return int(svm_predict(model, x));
+}
+
+void Classifier::ProcessImg(String srcPath, String rstPath)
+{
+    Mat img = imread(srcPath, CV_8UC1);
+    Mat rst;
+    img.copyTo(rst);
+    Mat subImg;
+    GLCM glcm;
+    svm_node* x;
+    svm_model* model = svm_load_model((folderName + "/svm_model").c_str());
+    double label;
+    bool findFlaw = false;
+    for(int w=0; w<img.cols-15; w++)
+    {
+        for(int h=0; h<img.rows-15; h++)
+        {
+            Rect rect(w, h, 15, 15);
+            subImg = img(rect);
+            // calculate GLCM features
+            glcm.Init(subImg, 16);
+            glcm.CalGLCM(90);
+            glcm.CalFeature();
+            // add svm_node into x
+            x = new svm_node[glcm.GLCMFeature.featureNum+1];
+            x[0].index = 1; x[0].value = glcm.GLCMFeature.entropy;
+            x[1].index = 2; x[1].value = glcm.GLCMFeature.homogeneity;
+            x[2].index = 3; x[2].value = glcm.GLCMFeature.contrast;
+            x[3].index = 4; x[3].value = glcm.GLCMFeature.ASM;
+            x[4].index = 5; x[4].value = glcm.GLCMFeature.correlation;
+            x[5].index = -1; x[5].value = 0;
+            label = svm_predict(model, x);
+            cout << w << ", " << h << ": " << label << endl;
+            if(label == -1)
+            {
+                rectangle(rst, cvPoint(w, h), cvPoint(w+15, h+15), Scalar(0,0,255), 1, 1, 0);
+                findFlaw = true;
+                break;
+            }
+        }
+        if(findFlaw)
+        {
+            break;
+        }
+    }
+    imwrite(rstPath, rst);
 }

@@ -32,6 +32,7 @@ public:
     int GLCMClass;
     double maxPixVal;
     GLCMFeature_t GLCMFeature;
+    void Init(InputArray _srcImg, int _GLCMClass = -1);
     void Init(String path, int _GLCMClass = -1);
     void CalGLCM(int angle = 0, int offset = 1, bool norm = true);
     void CalFeature();

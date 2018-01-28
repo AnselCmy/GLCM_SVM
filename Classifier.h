@@ -30,6 +30,7 @@ public:
     void GetTrainingData();
     void Train();
     int Predict(String path);
+    void ProcessImg(String srcPath, String rstPath);
 };
 
 
