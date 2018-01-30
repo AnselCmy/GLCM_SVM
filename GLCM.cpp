@@ -4,10 +4,12 @@
 
 #include "GLCM.h"
 
+
 GLCM::GLCM()
 {
 
 }
+
 
 GLCM::GLCM(InputArray _srcImg, int _GLCMClass)
 {
@@ -20,6 +22,7 @@ GLCM::GLCM(InputArray _srcImg, int _GLCMClass)
     GLCMMat = *(new Mat(Size(GLCMClass, GLCMClass), CV_32FC1));
 }
 
+
 GLCM::GLCM(String path, int _GLCMClass)
 {
     srcImg = imread(path, CV_8UC1);
@@ -30,6 +33,7 @@ GLCM::GLCM(String path, int _GLCMClass)
         GLCMClass = _GLCMClass;
     GLCMMat = *(new Mat(Size(GLCMClass, GLCMClass), CV_32FC1));
 }
+
 
 void GLCM::Init(InputArray _srcImg, int _GLCMClass)
 {
@@ -42,6 +46,7 @@ void GLCM::Init(InputArray _srcImg, int _GLCMClass)
     GLCMMat = *(new Mat(Size(GLCMClass, GLCMClass), CV_32FC1));
 }
 
+
 void GLCM::Init(String path, int _GLCMClass)
 {
     srcImg = imread(path, CV_8UC1);
@@ -53,10 +58,12 @@ void GLCM::Init(String path, int _GLCMClass)
     GLCMMat = *(new Mat(Size(GLCMClass, GLCMClass), CV_32FC1));
 }
 
+
 GLCM::~GLCM()
 {
 
 }
+
 
 /*
  * Brief:
@@ -164,6 +171,7 @@ void GLCM::CalGLCM(int angle, int offset, bool norm)
     }
 }
 
+
 /*
  * Brief:
  *      Using computed GLCMMat for caulating GLCMFeature
@@ -211,4 +219,23 @@ void GLCM::CalFeature()
         }
     }
     GLCMFeature.correlation /= sqrt(var_i*var_j);
+}
+
+
+vector<double> GLCM::GetFeaturesByAngle(int* angleList, int angleNum)
+{
+    vector<double> features;
+    int angle;
+    for(int i=0; i<angleNum; i++)
+    {
+        angle = angleList[angleNum];
+        CalGLCM(angle);
+        CalFeature();
+        features.push_back(GLCMFeature.entropy);
+        features.push_back(GLCMFeature.homogeneity);
+        features.push_back(GLCMFeature.contrast);
+        features.push_back(GLCMFeature.ASM);
+        features.push_back(GLCMFeature.correlation);
+    }
+    return features;
 }

@@ -156,7 +156,7 @@ void Classifier::Train()
 {
     svm_model *model;
     model = svm_train(&prob, &param);
-    svm_save_model((folderName + "svm_model").c_str(), model);
+    svm_save_model((folderName + "/svm_model").c_str(), model);
 }
 
 
@@ -189,6 +189,35 @@ int Classifier::Predict(String path)
     x[5].index = -1; x[5].value = 0;
     return int(svm_predict(model, x));
 }
+
+
+void Classifier::GetIntegralImage(InputArray _src, OutputArray _intImg, int power)
+{
+    // src
+    Mat src = _src.getMat();
+    Size size = src.size();
+    // integral image
+    _intImg.create(size, CV_64FC1);
+    Mat intImg = _intImg.getMat();
+
+    double sum;
+    for(int w = 0; w < size.width; ++w)
+    {
+        sum = 0;
+        for(int h = 0; h < size.height; ++h)
+        {
+            if(power == 1)
+                sum += src.at<uchar>(h, w);
+            else
+                sum += pow(src.at<uchar>(h, w), power);
+            if(w == 0)
+                intImg.at<double>(h, w) = sum;
+            else
+                intImg.at<double>(h, w) = intImg.at<double>(h, w-1) + sum;
+        }
+    }
+}
+
 
 void Classifier::ProcessImg(String srcPath, String rstPath)
 {
@@ -233,5 +262,89 @@ void Classifier::ProcessImg(String srcPath, String rstPath)
             break;
         }
     }
+    imwrite(rstPath, rst);
+}
+
+
+void Classifier::ProcessImgByCover(String srcPath, String rstPath)
+{
+    // src
+    Mat src = imread(srcPath, CV_8UC1);
+    Size size = src.size();
+    // srcFront
+    Mat srcFront, temp1, temp2, srcFrontCopy;
+    threshold(src, temp1, 0, 255, CV_THRESH_OTSU);
+    dilate(temp1, temp2, getStructuringElement(MORPH_RECT, Size(3, 3)));
+    erode(temp2, srcFront, getStructuringElement(MORPH_RECT, Size(11, 11)));
+//    srcFront.copyTo(srcFrontCopy);
+    // integral image
+    Mat srcIntImg;
+    Mat frontIntImg;
+    // rst
+    Mat rst;
+    src.copyTo(rst);
+
+    Mat subImg;
+    GLCM glcm;
+    svm_node* x;
+    svm_model* model = svm_load_model((folderName + "/svm_model").c_str());
+    double label;
+    bool findFlaw = false;
+
+    int x1, y1, x2, y2;
+    int count;
+    double sum, frontSum;
+    int pad = (15 - 1) / 2;
+    GetIntegralImage(src, srcIntImg);
+    GetIntegralImage(srcFront, frontIntImg);
+    for(int h = 0; h < size.height-pad; h+=15)
+    {
+        for(int w = 0; w < size.width-pad; w+=15)
+        {
+            if(srcFront.at<uchar>(h, w) == 255)
+            {
+                x1 = w;
+                x2 = w + 14;
+                y1 = h;
+                y2 = h + 14;
+
+                frontSum = frontIntImg.at<double>(y2, x2) + frontIntImg.at<double>(y1 - 1, x1 - 1)
+                           - frontIntImg.at<double>(y1 - 1, x2) - frontIntImg.at<double>(y2, x1 - 1);
+                if(frontSum != 255 * 15 * 15)
+                {
+                    continue;
+                }
+
+                Rect rect(x1, y1, 15, 15);
+                subImg = src(rect);
+                // calculate GLCM features
+                glcm.Init(subImg, 16);
+                glcm.CalGLCM(90);
+                glcm.CalFeature();
+                // add svm_node into x
+                x = new svm_node[glcm.GLCMFeature.featureNum+1];
+                x[0].index = 1; x[0].value = glcm.GLCMFeature.entropy;
+                x[1].index = 2; x[1].value = glcm.GLCMFeature.homogeneity;
+                x[2].index = 3; x[2].value = glcm.GLCMFeature.contrast;
+                x[3].index = 4; x[3].value = glcm.GLCMFeature.ASM;
+                x[4].index = 5; x[4].value = glcm.GLCMFeature.correlation;
+                x[5].index = -1; x[5].value = 0;
+                label = svm_predict(model, x);
+//                cout << h << ", " << w << ": " << label << endl;
+                if(label == -1)
+                {
+                    rectangle(rst, cvPoint(x1, y1), cvPoint(x2, y2), Scalar(0,0,255), 1, 1, 0);
+//                    rectangle(srcFrontCopy, cvPoint(w, h), cvPoint(w+15, h+15), Scalar(0,0,255), 1, 1, 0);
+                    findFlaw = true;
+                    break;
+                }
+            }
+        }
+//        if(findFlaw)
+//        {
+//            break;
+//        }
+    }
+//    imwrite("../binary_classification/test/10_temp.jpg", srcFrontCopy);
     imwrite(rstPath, rst);
 }

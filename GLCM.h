@@ -5,6 +5,7 @@
 #define GLCM_SVM_GLCM_H
 
 #include <opencv2/opencv.hpp>
+#include <vector>
 
 using namespace std;
 using namespace cv;
@@ -36,6 +37,7 @@ public:
     void Init(String path, int _GLCMClass = -1);
     void CalGLCM(int angle = 0, int offset = 1, bool norm = true);
     void CalFeature();
+    vector<double> GetFeaturesByAngle(int *angleList, int angleNum);
 };
 
 
