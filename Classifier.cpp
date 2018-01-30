@@ -24,8 +24,8 @@ Classifier::~Classifier()
  * Brief:
  *      Get the list of folders of the input folderName
  *
- * Params:
- *      The name of the listed folder
+ * Param:
+ *      The name of the folder need to be listed
  */
 vector<String> Classifier::GetFolderList(String folderName)
 {
@@ -96,19 +96,25 @@ void Classifier::GetTrainingData()
 
 /*
  * Brief:
- *      Using the data from trainX and trainY to training the svm model
+ *      Initialize the svm_problem by trainX and trainY
  */
-void Classifier::Train()
+void Classifier::InitProb()
 {
-    svm_problem prob;
     // 训练样本的数目
     prob.l = (int)trainY.size();
     // 给x分配空间
     prob.x = &trainX[0];
     // 给y分配空间
     prob.y = &trainY[0];
+}
 
-    svm_parameter param;
+
+/*
+ * Brief:
+ *      Initialize the svm_parameter
+ */
+void Classifier::InitParam()
+{
     param.svm_type = C_SVC;
     param.kernel_type = RBF;
     param.gamma = 0.5;	// 1/num_features
@@ -120,7 +126,34 @@ void Classifier::Train()
     param.nr_weight = 0;
     param.weight_label = NULL;
     param.weight = NULL;
+}
 
+
+/*
+ * Brief:
+ *      Using the prob and param to do cross validation
+ *
+ * Param:
+ *      foldNum: The number of fold in cross validation
+ */
+double Classifier::CrossValidation(int foldNum)
+{
+    double* target = new double[prob.l];
+    int correct = 0;
+    svm_cross_validation(&prob, &param, foldNum, target);
+    for(int i = 0; i < prob.l; i++)
+        if(target[i] == prob.y[i])
+            correct++;
+    return 1.0*correct/prob.l;
+}
+
+
+/*
+ * Brief:
+ *      Using the prob and param to train the svm_model
+ */
+void Classifier::Train()
+{
     svm_model *model;
     model = svm_train(&prob, &param);
     svm_save_model((folderName + "svm_model").c_str(), model);
@@ -131,7 +164,7 @@ void Classifier::Train()
  * Brief:
  *      Using the path of the image to predict its class
  *
- * Params:
+ * Param:
  *      path: The path of image need to be predicted
  *
  * Return:

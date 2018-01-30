@@ -23,11 +23,16 @@ public:
     ~Classifier();
 
     String folderName;
+    svm_problem prob;
+    svm_parameter param;
     vector<svm_node*> trainX;
     vector<double> trainY;
 
     vector<String> GetFolderList(String folderName);
     void GetTrainingData();
+    void InitProb();
+    void InitParam();
+    double CrossValidation(int foldNum);
     void Train();
     int Predict(String path);
     void ProcessImg(String srcPath, String rstPath);
