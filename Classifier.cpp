@@ -56,6 +56,7 @@ void Classifier::GetTrainingData()
     Mat img;
     GLCM glcm;
     svm_node* nodeList;
+    vector<double> features;
     for(String binClass : classList)
     {
         DIR *dir = opendir((folderName + "/train/" + binClass).c_str());
@@ -66,17 +67,18 @@ void Classifier::GetTrainingData()
             if(dirp->d_type == DT_REG && dirp->d_name[0] != '.')
             {
                 // calculate GLCM features
+                int angleList[] = {0, 45, 90, 135};
                 glcm.Init(folderName + "/train/" + binClass + "/" + dirp->d_name, 16);
-                glcm.CalGLCM(90);
-                glcm.CalFeature();
+                features = glcm.GetFeaturesByAngle(angleList, 4);
                 // add svm_node into trainX
-                nodeList = new svm_node[glcm.GLCMFeature.featureNum+1];
-                nodeList[0].index = 1; nodeList[0].value = glcm.GLCMFeature.entropy;
-                nodeList[1].index = 2; nodeList[1].value = glcm.GLCMFeature.homogeneity;
-                nodeList[2].index = 3; nodeList[2].value = glcm.GLCMFeature.contrast;
-                nodeList[3].index = 4; nodeList[3].value = glcm.GLCMFeature.ASM;
-                nodeList[4].index = 5; nodeList[4].value = glcm.GLCMFeature.correlation;
-                nodeList[5].index = -1; nodeList[5].value = 0;
+                nodeList = new svm_node[features.size()+1];
+                for(int i=0; i<features.size(); i++)
+                {
+                    nodeList[i].index = i+1;
+                    nodeList[i].value = features[i];
+                }
+                nodeList[features.size()].index = -1;
+                nodeList[features.size()].value = 0;
                 trainX.push_back(nodeList);
                 // add class num into trainY;
                 trainY.push_back(stoi(binClass));
@@ -85,7 +87,7 @@ void Classifier::GetTrainingData()
 //                        glcm.GLCMFeature.homogeneity << " " <<
 //                        glcm.GLCMFeature.contrast << " " <<
 //                        glcm.GLCMFeature.ASM << " " <<
-//                        glcm.GLCMFeature.correlation << endl;
+//                        glcm.GLCMFeature.correaltion << endl;
 //                cout << "--------------------------------------" << endl;
             }
         }
@@ -175,18 +177,42 @@ int Classifier::Predict(String path)
     GLCM glcm;
     svm_node* x;
     svm_model* model = svm_load_model((folderName + "/svm_model").c_str());
+    vector<double> features;
     // calculate GLCM features
     glcm.Init(path, 16);
-    glcm.CalGLCM(90);
-    glcm.CalFeature();
+    int angleList[] = {0, 45, 90, 135};
+    features = glcm.GetFeaturesByAngle(angleList, 4);
     // add svm_node into x
-    x = new svm_node[glcm.GLCMFeature.featureNum+1];
-    x[0].index = 1; x[0].value = glcm.GLCMFeature.entropy;
-    x[1].index = 2; x[1].value = glcm.GLCMFeature.homogeneity;
-    x[2].index = 3; x[2].value = glcm.GLCMFeature.contrast;
-    x[3].index = 4; x[3].value = glcm.GLCMFeature.ASM;
-    x[4].index = 5; x[4].value = glcm.GLCMFeature.correlation;
-    x[5].index = -1; x[5].value = 0;
+    x = new svm_node[features.size()+1];
+    for(int i=0; i<features.size(); i++)
+    {
+        x[i].index = i+1;
+        x[i].value = features[i];
+    }
+    x[features.size()].index = -1;
+    x[features.size()].value = 0;
+    return int(svm_predict(model, x));
+}
+
+
+int Classifier::Predict(svm_model* model, const Mat img)
+{
+    GLCM glcm;
+    svm_node* x;
+    vector<double> features;
+    // calculate GLCM features
+    glcm.Init(img, 16);
+    int angleList[] = {0, 45, 90, 135};
+    features = glcm.GetFeaturesByAngle(angleList, 4);
+    // add svm_node into x
+    x = new svm_node[features.size()+1];
+    for(int i=0; i<features.size(); i++)
+    {
+        x[i].index = i+1;
+        x[i].value = features[i];
+    }
+    x[features.size()].index = -1;
+    x[features.size()].value = 0;
     return int(svm_predict(model, x));
 }
 
@@ -221,6 +247,9 @@ void Classifier::GetIntegralImage(InputArray _src, OutputArray _intImg, int powe
 
 void Classifier::ProcessImg(String srcPath, String rstPath)
 {
+//    Mat srctemp = imread(srcPath, CV_8UC1);
+//    Mat img;
+//    GaussianBlur(srctemp, img, Size(5, 5), 0, 0);
     Mat img = imread(srcPath, CV_8UC1);
     Mat rst;
     img.copyTo(rst);
@@ -228,6 +257,7 @@ void Classifier::ProcessImg(String srcPath, String rstPath)
     GLCM glcm;
     svm_node* x;
     svm_model* model = svm_load_model((folderName + "/svm_model").c_str());
+    vector<double> features;
     double label;
     bool findFlaw = false;
     for(int w=0; w<img.cols-15; w++)
@@ -236,20 +266,24 @@ void Classifier::ProcessImg(String srcPath, String rstPath)
         {
             Rect rect(w, h, 15, 15);
             subImg = img(rect);
-            // calculate GLCM features
-            glcm.Init(subImg, 16);
-            glcm.CalGLCM(90);
-            glcm.CalFeature();
-            // add svm_node into x
-            x = new svm_node[glcm.GLCMFeature.featureNum+1];
-            x[0].index = 1; x[0].value = glcm.GLCMFeature.entropy;
-            x[1].index = 2; x[1].value = glcm.GLCMFeature.homogeneity;
-            x[2].index = 3; x[2].value = glcm.GLCMFeature.contrast;
-            x[3].index = 4; x[3].value = glcm.GLCMFeature.ASM;
-            x[4].index = 5; x[4].value = glcm.GLCMFeature.correlation;
-            x[5].index = -1; x[5].value = 0;
-            label = svm_predict(model, x);
-            cout << w << ", " << h << ": " << label << endl;
+//            Mat subImgGauss;
+//            GaussianBlur(subImg, subImgGauss, Size(5, 5), 0, 0);
+//            // calculate GLCM features
+//            glcm.Init(subImgGauss, 16);
+//            int angleList[] = {0, 45, 90, 135};
+//            features = glcm.GetFeaturesByAngle(angleList, 4);
+//            // add svm_node into x
+//            x = new svm_node[features.size()+1];
+//            for(int i=0; i<features.size(); i++)
+//            {
+//                x[i].index = i+1;
+//                x[i].value = features[i];
+//            }
+//            x[features.size()].index = -1;
+//            x[features.size()].value = 0;
+//            label = svm_predict(model, x);
+            label = Predict(model, subImg);
+//            cout << h << ", " << w << ": " << label << endl;
             if(label == -1)
             {
                 rectangle(rst, cvPoint(w, h), cvPoint(w+15, h+15), Scalar(0,0,255), 1, 1, 0);
@@ -257,10 +291,10 @@ void Classifier::ProcessImg(String srcPath, String rstPath)
                 break;
             }
         }
-        if(findFlaw)
-        {
-            break;
-        }
+//        if(findFlaw)
+//        {
+//            break;
+//        }
     }
     imwrite(rstPath, rst);
 }
@@ -269,25 +303,32 @@ void Classifier::ProcessImg(String srcPath, String rstPath)
 void Classifier::ProcessImgByCover(String srcPath, String rstPath)
 {
     // src
+//    Mat srctemp = imread(srcPath, CV_8UC1);
+//    Mat src;
+//    GaussianBlur(srctemp, src, Size(5, 5), 0, 0);
     Mat src = imread(srcPath, CV_8UC1);
     Size size = src.size();
     // srcFront
-    Mat srcFront, temp1, temp2, srcFrontCopy;
+    Mat srcFront, temp1, temp2, srcFrontCopy, srcFrontCopy2;
+//    threshold(src, srcFrontCopy, 0, 255, CV_THRESH_OTSU);
     threshold(src, temp1, 0, 255, CV_THRESH_OTSU);
     dilate(temp1, temp2, getStructuringElement(MORPH_RECT, Size(3, 3)));
-    erode(temp2, srcFront, getStructuringElement(MORPH_RECT, Size(11, 11)));
-//    srcFront.copyTo(srcFrontCopy);
+    erode(temp2, srcFront, getStructuringElement(MORPH_RECT, Size(3, 3)));
+    srcFront.copyTo(srcFrontCopy);
+    srcFront.copyTo(srcFrontCopy2);
     // integral image
     Mat srcIntImg;
     Mat frontIntImg;
     // rst
-    Mat rst;
-    src.copyTo(rst);
+    Mat rstTemp, rst;
+    src.copyTo(rstTemp);
+    cvtColor(rstTemp, rst, COLOR_GRAY2BGR);
 
     Mat subImg;
     GLCM glcm;
     svm_node* x;
     svm_model* model = svm_load_model((folderName + "/svm_model").c_str());
+    vector<double> features;
     double label;
     bool findFlaw = false;
 
@@ -297,9 +338,9 @@ void Classifier::ProcessImgByCover(String srcPath, String rstPath)
     int pad = (15 - 1) / 2;
     GetIntegralImage(src, srcIntImg);
     GetIntegralImage(srcFront, frontIntImg);
-    for(int h = 0; h < size.height-pad; h+=15)
+    for(int h = 0; h < size.height-pad; h+=10)
     {
-        for(int w = 0; w < size.width-pad; w+=15)
+        for(int w = 0; w < size.width-pad; w+=10)
         {
             if(srcFront.at<uchar>(h, w) == 255)
             {
@@ -317,26 +358,17 @@ void Classifier::ProcessImgByCover(String srcPath, String rstPath)
 
                 Rect rect(x1, y1, 15, 15);
                 subImg = src(rect);
-                // calculate GLCM features
-                glcm.Init(subImg, 16);
-                glcm.CalGLCM(90);
-                glcm.CalFeature();
-                // add svm_node into x
-                x = new svm_node[glcm.GLCMFeature.featureNum+1];
-                x[0].index = 1; x[0].value = glcm.GLCMFeature.entropy;
-                x[1].index = 2; x[1].value = glcm.GLCMFeature.homogeneity;
-                x[2].index = 3; x[2].value = glcm.GLCMFeature.contrast;
-                x[3].index = 4; x[3].value = glcm.GLCMFeature.ASM;
-                x[4].index = 5; x[4].value = glcm.GLCMFeature.correlation;
-                x[5].index = -1; x[5].value = 0;
-                label = svm_predict(model, x);
+//                rectangle(srcFrontCopy2, cvPoint(x1, y1), cvPoint(x2, y2), Scalar(0,0,100), 1, 1, 0);
+//                Mat subImgGauss;
+//                GaussianBlur(subImg, subImgGauss, Size(5, 5), 0, 0);
+                label = Predict(model, subImg);
 //                cout << h << ", " << w << ": " << label << endl;
                 if(label == -1)
                 {
-                    rectangle(rst, cvPoint(x1, y1), cvPoint(x2, y2), Scalar(0,0,255), 1, 1, 0);
-//                    rectangle(srcFrontCopy, cvPoint(w, h), cvPoint(w+15, h+15), Scalar(0,0,255), 1, 1, 0);
+                    rectangle(rst, cvPoint(x1-1, y1-1), cvPoint(x2+1, y2+1), Scalar(0,0,255), 1, 1, 0);
+//                    rectangle(srcFrontCopy, cvPoint(x1-1, y1-1), cvPoint(x2+1, y2+1), Scalar(0,0,255), 1, 1, 0);
                     findFlaw = true;
-                    break;
+//                    break;
                 }
             }
         }
@@ -345,6 +377,7 @@ void Classifier::ProcessImgByCover(String srcPath, String rstPath)
 //            break;
 //        }
     }
-//    imwrite("../binary_classification/test/10_temp.jpg", srcFrontCopy);
+//    imwrite("../binary_classification/test/34_temp.png", srcFrontCopy);
+//    imwrite("../binary_classification/test/34_cover.png", srcFrontCopy2);
     imwrite(rstPath, rst);
 }

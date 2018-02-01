@@ -37,7 +37,7 @@ public:
     void Init(String path, int _GLCMClass = -1);
     void CalGLCM(int angle = 0, int offset = 1, bool norm = true);
     void CalFeature();
-    vector<double> GetFeaturesByAngle(int *angleList, int angleNum);
+    vector<double> GetFeaturesByAngle(const int *angleList, int angleNum);
 };
 
 

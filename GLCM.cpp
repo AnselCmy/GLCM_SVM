@@ -88,6 +88,7 @@ void GLCM::CalGLCM(int angle, int offset, bool norm)
             temp.at<uchar>(h, w) = (uchar)(srcImg.at<uchar>(h, w) * GLCMClass / (maxPixVal+1));
         }
     }
+//    cout << temp << endl;
     // calculate the matrix
     int row = 0, col = 0;
     if(angle == 0)
@@ -207,7 +208,7 @@ void GLCM::CalFeature()
             currVal = GLCMLine[w];
             // Entropy
             if(currVal > 0)
-                GLCMFeature.entropy += (pow(h-w, 2) * currVal) / log(currVal);
+                GLCMFeature.entropy += (pow(h-w, 2) * currVal) / (log(currVal)+1);
             // Contrast
             GLCMFeature.contrast += currVal * pow(h-w, 2);
             // Homogeneity
@@ -218,17 +219,17 @@ void GLCM::CalFeature()
             GLCMFeature.correlation += currVal * (h-mean_i) * (w-mean_j);
         }
     }
-    GLCMFeature.correlation /= sqrt(var_i*var_j);
+    GLCMFeature.correlation /= (sqrt(var_i*var_j)+1);
 }
 
 
-vector<double> GLCM::GetFeaturesByAngle(int* angleList, int angleNum)
+vector<double> GLCM::GetFeaturesByAngle(const int* angleList, int angleNum)
 {
     vector<double> features;
     int angle;
     for(int i=0; i<angleNum; i++)
     {
-        angle = angleList[angleNum];
+        angle = angleList[i];
         CalGLCM(angle);
         CalFeature();
         features.push_back(GLCMFeature.entropy);
