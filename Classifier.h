@@ -38,7 +38,7 @@ public:
     int Predict(svm_model* model, const Mat img);
     void ProcessImg(String srcPath, String rstPath);
     void GetIntegralImage(InputArray _src, OutputArray _intImg, int power = 1);
-    void ProcessImgByCover(String srcPath, String rstPath);
+    void ProcessImgByCover(String srcPath, String rstPath = "", String tempPath = "");
 };
 
 

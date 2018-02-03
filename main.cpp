@@ -54,7 +54,9 @@ int main()
 //    cout << classifier.Predict("../binary_classification/test/33.png") << endl;
 
 //    classifier.ProcessImg("../binary_classification/test/8.bmp", "../binary_classification/test/8_rst.png");
-    classifier.ProcessImgByCover("../binary_classification/test/35.bmp", "../binary_classification/test/35_rst.png");
+    classifier.ProcessImgByCover("../binary_classification/test/13.bmp",
+                                 "../binary_classification/test/13_rst.png",
+                                 "../binary_classification/test/13_temp.png");
 
 //    svm_model* model = svm_load_model((classifier.folderName + "/svm_model").c_str());
 //    Mat img = imread("../binary_classification/test/22.bmp", CV_8UC1);

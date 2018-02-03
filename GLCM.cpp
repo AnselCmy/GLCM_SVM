@@ -70,9 +70,9 @@ GLCM::~GLCM()
  *      The function can calculate the GLCM matrix by using origin gray image
  *
  * Params:
- *      angle:      The angle for scanning, can be 0, 45, 90, 135
- *      offset:     The stride(offset) of the scanning
- *      norm:       Using normalization or not
+ *      angle:  The angle for scanning, can be 0, 45, 90, 135
+ *      offset: The stride(offset) of the scanning
+ *      norm:   Using normalization or not
  */
 void GLCM::CalGLCM(int angle, int offset, bool norm)
 {
@@ -88,7 +88,6 @@ void GLCM::CalGLCM(int angle, int offset, bool norm)
             temp.at<uchar>(h, w) = (uchar)(srcImg.at<uchar>(h, w) * GLCMClass / (maxPixVal+1));
         }
     }
-//    cout << temp << endl;
     // calculate the matrix
     int row = 0, col = 0;
     if(angle == 0)
@@ -223,6 +222,17 @@ void GLCM::CalFeature()
 }
 
 
+/*
+ * Brief:
+ *      Get feature list by using list of angles
+ *
+ * Param:
+ *      angleList:  The angles for computing GLCM and its features
+ *      angleNum:   The length of angleList
+ *
+ * Return:
+ *      A list of features
+ */
 vector<double> GLCM::GetFeaturesByAngle(const int* angleList, int angleNum)
 {
     vector<double> features;

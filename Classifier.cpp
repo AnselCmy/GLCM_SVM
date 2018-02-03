@@ -195,6 +195,17 @@ int Classifier::Predict(String path)
 }
 
 
+/*
+ * Brief:
+ *      Using trained model and img Mat to predict its class
+ *
+ * Param:
+ *      model:  Trained svm model
+ *      img:    Mat of a image
+ *
+ * Return:
+ *      The class for this image
+*/
 int Classifier::Predict(svm_model* model, const Mat img)
 {
     GLCM glcm;
@@ -217,6 +228,15 @@ int Classifier::Predict(svm_model* model, const Mat img)
 }
 
 
+/*
+ * Brief:
+ *      Get the integral image for _src image
+ *
+ * Param:
+ *      _src:   The source image
+ *      _intImg:The integral image for src image
+ *      power:  The power for every pixel, usually 1
+*/
 void Classifier::GetIntegralImage(InputArray _src, OutputArray _intImg, int power)
 {
     // src
@@ -247,9 +267,6 @@ void Classifier::GetIntegralImage(InputArray _src, OutputArray _intImg, int powe
 
 void Classifier::ProcessImg(String srcPath, String rstPath)
 {
-//    Mat srctemp = imread(srcPath, CV_8UC1);
-//    Mat img;
-//    GaussianBlur(srctemp, img, Size(5, 5), 0, 0);
     Mat img = imread(srcPath, CV_8UC1);
     Mat rst;
     img.copyTo(rst);
@@ -266,41 +283,19 @@ void Classifier::ProcessImg(String srcPath, String rstPath)
         {
             Rect rect(w, h, 15, 15);
             subImg = img(rect);
-//            Mat subImgGauss;
-//            GaussianBlur(subImg, subImgGauss, Size(5, 5), 0, 0);
-//            // calculate GLCM features
-//            glcm.Init(subImgGauss, 16);
-//            int angleList[] = {0, 45, 90, 135};
-//            features = glcm.GetFeaturesByAngle(angleList, 4);
-//            // add svm_node into x
-//            x = new svm_node[features.size()+1];
-//            for(int i=0; i<features.size(); i++)
-//            {
-//                x[i].index = i+1;
-//                x[i].value = features[i];
-//            }
-//            x[features.size()].index = -1;
-//            x[features.size()].value = 0;
-//            label = svm_predict(model, x);
             label = Predict(model, subImg);
-//            cout << h << ", " << w << ": " << label << endl;
             if(label == -1)
             {
                 rectangle(rst, cvPoint(w, h), cvPoint(w+15, h+15), Scalar(0,0,255), 1, 1, 0);
                 findFlaw = true;
-                break;
             }
         }
-//        if(findFlaw)
-//        {
-//            break;
-//        }
     }
     imwrite(rstPath, rst);
 }
 
 
-void Classifier::ProcessImgByCover(String srcPath, String rstPath)
+void Classifier::ProcessImgByCover(String srcPath, String rstPath, String tempPath)
 {
     // src
 //    Mat srctemp = imread(srcPath, CV_8UC1);
@@ -311,9 +306,9 @@ void Classifier::ProcessImgByCover(String srcPath, String rstPath)
     // srcFront
     Mat srcFront, temp1, temp2, srcFrontCopy, srcFrontCopy2;
 //    threshold(src, srcFrontCopy, 0, 255, CV_THRESH_OTSU);
-    threshold(src, temp1, 0, 255, CV_THRESH_OTSU);
-    dilate(temp1, temp2, getStructuringElement(MORPH_RECT, Size(3, 3)));
-    erode(temp2, srcFront, getStructuringElement(MORPH_RECT, Size(3, 3)));
+    threshold(src, srcFront, 0, 255, CV_THRESH_OTSU);
+//    dilate(temp1, temp2, getStructuringElement(MORPH_RECT, Size(3, 3)));
+//    erode(temp2, srcFront, getStructuringElement(MORPH_RECT, Size(3, 3)));
     srcFront.copyTo(srcFrontCopy);
     srcFront.copyTo(srcFrontCopy2);
     // integral image
@@ -338,9 +333,9 @@ void Classifier::ProcessImgByCover(String srcPath, String rstPath)
     int pad = (15 - 1) / 2;
     GetIntegralImage(src, srcIntImg);
     GetIntegralImage(srcFront, frontIntImg);
-    for(int h = 0; h < size.height-pad; h+=10)
+    for(int h = 0; h < size.height-pad; h+=5)
     {
-        for(int w = 0; w < size.width-pad; w+=10)
+        for(int w = 0; w < size.width-pad; w+=5)
         {
             if(srcFront.at<uchar>(h, w) == 255)
             {
@@ -366,7 +361,7 @@ void Classifier::ProcessImgByCover(String srcPath, String rstPath)
                 if(label == -1)
                 {
                     rectangle(rst, cvPoint(x1-1, y1-1), cvPoint(x2+1, y2+1), Scalar(0,0,255), 1, 1, 0);
-//                    rectangle(srcFrontCopy, cvPoint(x1-1, y1-1), cvPoint(x2+1, y2+1), Scalar(0,0,255), 1, 1, 0);
+                    rectangle(srcFrontCopy, cvPoint(x1-1, y1-1), cvPoint(x2+1, y2+1), Scalar(0,0,255), 1, 1, 0);
                     findFlaw = true;
 //                    break;
                 }
@@ -377,7 +372,8 @@ void Classifier::ProcessImgByCover(String srcPath, String rstPath)
 //            break;
 //        }
     }
-//    imwrite("../binary_classification/test/34_temp.png", srcFrontCopy);
-//    imwrite("../binary_classification/test/34_cover.png", srcFrontCopy2);
-    imwrite(rstPath, rst);
+    if(tempPath != "")
+        imwrite(tempPath, srcFrontCopy);
+    if(rstPath != "")
+        imwrite(rstPath, rst);
 }
