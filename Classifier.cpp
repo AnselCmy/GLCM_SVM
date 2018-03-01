@@ -206,11 +206,13 @@ int Classifier::Predict(String path)
  * Return:
  *      The class for this image
 */
-int Classifier::Predict(svm_model* model, const Mat img)
+int Classifier::Predict(svm_model* model, Mat img)
 {
     GLCM glcm;
     svm_node* x;
     vector<double> features;
+    // pre process
+    img = PreProcess(img);
     // calculate GLCM features
     glcm.Init(img, 16);
     int angleList[] = {0, 45, 90, 135};
@@ -294,21 +296,24 @@ void Classifier::ProcessImg(String srcPath, String rstPath)
     imwrite(rstPath, rst);
 }
 
+Mat Classifier::PreProcess(Mat src)
+{
+    Mat temp1, rst;
+    equalizeHist(src, temp1);
+    GaussianBlur(temp1, rst, Size(3, 3), 0, 0);
+    return rst;
+}
 
 void Classifier::ProcessImgByCover(String srcPath, String rstPath, String tempPath)
 {
     // src
-//    Mat srctemp = imread(srcPath, CV_8UC1);
-//    Mat src;
-//    GaussianBlur(srctemp, src, Size(5, 5), 0, 0);
     Mat src = imread(srcPath, CV_8UC1);
     Size size = src.size();
     // srcFront
     Mat srcFront, temp1, temp2, srcFrontCopy, srcFrontCopy2;
-//    threshold(src, srcFrontCopy, 0, 255, CV_THRESH_OTSU);
     threshold(src, srcFront, 0, 255, CV_THRESH_OTSU);
 //    dilate(temp1, temp2, getStructuringElement(MORPH_RECT, Size(3, 3)));
-//    erode(temp2, srcFront, getStructuringElement(MORPH_RECT, Size(3, 3)));
+//    erode(temp2, srcFront, getStructuringElement(MORPH_RECT, Size(5, 5)));
     srcFront.copyTo(srcFrontCopy);
     srcFront.copyTo(srcFrontCopy2);
     // integral image
@@ -333,9 +338,9 @@ void Classifier::ProcessImgByCover(String srcPath, String rstPath, String tempPa
     int pad = (15 - 1) / 2;
     GetIntegralImage(src, srcIntImg);
     GetIntegralImage(srcFront, frontIntImg);
-    for(int h = 0; h < size.height-pad; h+=5)
+    for(int h = 0; h < size.height-pad; h+=10)
     {
-        for(int w = 0; w < size.width-pad; w+=5)
+        for(int w = 0; w < size.width-pad; w+=10)
         {
             if(srcFront.at<uchar>(h, w) == 255)
             {
@@ -362,7 +367,7 @@ void Classifier::ProcessImgByCover(String srcPath, String rstPath, String tempPa
                 {
                     rectangle(rst, cvPoint(x1-1, y1-1), cvPoint(x2+1, y2+1), Scalar(0,0,255), 1, 1, 0);
                     rectangle(srcFrontCopy, cvPoint(x1-1, y1-1), cvPoint(x2+1, y2+1), Scalar(0,0,255), 1, 1, 0);
-                    findFlaw = true;
+//                    findFlaw = true;
 //                    break;
                 }
             }
@@ -376,4 +381,70 @@ void Classifier::ProcessImgByCover(String srcPath, String rstPath, String tempPa
         imwrite(tempPath, srcFrontCopy);
     if(rstPath != "")
         imwrite(rstPath, rst);
+}
+
+int Classifier::GetMaxNumInFolder(String path)
+{
+    DIR *dir = opendir(path.c_str());
+    dirent *dirp;
+    int cnt = 0;
+    while((dirp = readdir(dir)) != nullptr)
+    {
+        if(dirp->d_type == DT_REG && dirp->d_name[0] != '.')
+        {
+            cnt++;
+        }
+    }
+    return cnt;
+}
+
+void Classifier::SplitToTrain(String srcPath, String rstDir)
+{
+    // src
+    Mat src = imread(srcPath, CV_8UC1);
+    Size size = src.size();
+    // srcFront
+    Mat srcFront, temp1, temp2, srcFrontCopy;
+    threshold(src, temp1, 0, 255, CV_THRESH_OTSU);
+    dilate(temp1, temp2, getStructuringElement(MORPH_RECT, Size(3, 3)));
+    erode(temp2, srcFront, getStructuringElement(MORPH_RECT, Size(5, 5)));
+    srcFront.copyTo(srcFrontCopy);
+    // integral image
+    Mat srcIntImg;
+    Mat frontIntImg;
+
+    Mat subImg;
+
+    int x1, y1, x2, y2;
+    double frontSum;
+    int pad = (15 - 1) / 2;
+    GetIntegralImage(src, srcIntImg);
+    GetIntegralImage(srcFront, frontIntImg);
+    int cnt = GetMaxNumInFolder(rstDir);
+    for(int h = 0; h < size.height-pad; h+=10)
+    {
+        for(int w = 0; w < size.width - pad; w += 10)
+        {
+            if(srcFront.at<uchar>(h, w) == 255)
+            {
+                x1 = w;
+                x2 = w + 14;
+                y1 = h;
+                y2 = h + 14;
+
+                frontSum = frontIntImg.at<double>(y2, x2) + frontIntImg.at<double>(y1 - 1, x1 - 1)
+                           - frontIntImg.at<double>(y1 - 1, x2) - frontIntImg.at<double>(y2, x1 - 1);
+                if(frontSum != 255 * 15 * 15)
+                {
+                    continue;
+                }
+
+                Rect rect(x1, y1, 15, 15);
+                subImg = PreProcess(src(rect));
+
+                imwrite(rstDir+"/"+to_string(cnt)+".bmp", subImg);
+                cnt++;
+            }
+        }
+    }
 }

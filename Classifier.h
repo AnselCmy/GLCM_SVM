@@ -19,7 +19,7 @@ using namespace cv;
 class Classifier
 {
 public:
-    Classifier(String _folderName = "../img/binary_classification/");
+    Classifier(String _folderName = "../img/binary_classification");
     ~Classifier();
 
     String folderName;
@@ -34,11 +34,14 @@ public:
     void InitParam();
     double CrossValidation(int foldNum);
     void Train();
+    Mat PreProcess(Mat src);
     int Predict(String path);
     int Predict(svm_model* model, const Mat img);
     void ProcessImg(String srcPath, String rstPath);
     void GetIntegralImage(InputArray _src, OutputArray _intImg, int power = 1);
     void ProcessImgByCover(String srcPath, String rstPath = "", String tempPath = "");
+    int GetMaxNumInFolder(String dir);
+    void SplitToTrain(String srcPath, String rstDir);
 };
 
 
